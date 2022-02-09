@@ -12,6 +12,7 @@
   "dependencies": {
     "dotenv": "^16.0.0",
     "express": "^4.17.2",
-    "index.js": "^0.0.3"
+    "index.js": "^0.0.3",
+    "xml-js": "^1.6.11"
   }
 }
