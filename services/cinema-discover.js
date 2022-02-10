@@ -3,8 +3,10 @@ import dotenv from 'dotenv';
 import { doremi } from '../lib/ims/doremi.js';
 import { smi } from '../lib/dss/dolbySMI.js';
 import { smi_operation } from '../lib/dss/dolbySMIDefinitions.js';
-// pull in config info
+// temp to test
+import { dssResponse } from '../testjsobject.js';
 
+// pull in config info
 const result = dotenv.config();
 if (result.error){ 
     console.log("Config file malformatted.  Please fix and restart service.");
@@ -49,6 +51,10 @@ async function getServerSerial() {
                     let session = await server.Login({ username: "manager", password: "password" });
                     let serverInfo = await server.GetProductInformation();
                     serverArray[(audNum - 1)] = serverInfo;
+                    
+                    // TODO: 
+                    //      get serial numbers and add into array for IMS
+                    //      
 
                 }
                 catch(err){ 
@@ -59,14 +65,15 @@ async function getServerSerial() {
                 break;
             case "DOLBY":
                 // query dss for serial
-                let prelim = mediaNetwork.split('.', 3);
-                let oct = audNum + 100;
-                let address = prelim[0] + '.' + prelim[1] + '.' + prelim[2] + '.' + oct;
-                let dolby = new smi(address);
+                let mediaPrelim = mediaNetwork.split('.', 3);
+                let mediaOct = audNum + 100;
+                let mediaAddress = mediaPrelim[0] + '.' + mediaPrelim[1] + '.' + mediaPrelim[2] + '.' + mediaOct;
+                let dolby = new smi(mediaAddress);
                 try{ 
-                    let componentInfos = await dolby.systemManagementRequest(smi_operation.SystemManagement.getDeviceComponentInfosRequest, { auditorium: audNum });
-                    let compElemtents = componentInfos.elements;
-                    let devices = [];
+                    //let componentInfos = await dolby.systemManagementRequest(smi_operation.SystemManagement.getDeviceComponentInfosRequest, { auditorium: audNum });
+                    let componentInfos = dssResponse;
+                    let compElemtents = componentInfos.elements[0].elements[1].elements[0].elements;
+                    let serverDevices = [];
                     compElemtents.forEach(element => {
                         if(element.name === "deviceComponentInfo"){ 
                             let devProperties = element.elements;
@@ -74,38 +81,59 @@ async function getServerSerial() {
                             devProperties.forEach(p => {
                                 switch (p.name) {
                                     case "ns5:deviceComponentId":
-                                        dev.deviceComponentId = elements[0].text;
+                                        dev.deviceComponentId = p.elements[0].text;
                                         break;
                                     case "ns5:location":
-                                        dev.location = elements[0].text;
+                                        dev.location = p.elements[0].text;
                                         break;
                                     case "ns5:deviceComponentType":
-                                        dev.componentType = elements[0].text;
+                                        dev.componentType = p.elements[0].text;
                                         break;
                                     case "ns5:deviceComponentModel":
-                                        dev.componentModel = elements[0].text;
+                                        dev.componentModel = p.elements[0].text;
                                         break;
                                     case "ns5:deviceComponentProperty":
-                                        
+                                        let property = {};
+                                        p.elements.forEach(prop => {
+                                            switch (prop.name) {
+                                                case "ns5:type":
+                                                    property.type = prop.elements[0].text;
+                                                    break;
+                                                case "ns5:name":
+                                                    property.name = prop.elements[0].text;
+                                                    break;
+                                                case "ns5:value":
+                                                    property.value = prop.elements[0].text;
+                                                    break;
+                                                default:
+                                                    break;
+                                            }
+                                        });
+
+                                        dev[property.name] = property.value;
                                         break;
                                     default:
                                         break;
                                 }
                                 
-                            });
-                        }
-                        
+                            }); 
+                            
+                            serverDevices.push(dev);
+                        }                 
                     });
-                    
-                    let dolbyInfo = {
-                        dataType: 'productInformation',
-						productName: "Dolby",
-						serialNumber: soapBody.elements[1].elements[0].text,
-						systemId: soapBody.elements[2].elements[0].text,
-						mainSoftwareVersion: soapBody.elements[3].elements[0].text,
-						mainFirmwareVersion: soapBody.elements[4].elements[0].text,
-						bundleVersion: soapBody.elements[5].elements[0].text
-                    }
+
+                    // get decoder serials
+
+                    let sn = {}
+                    serverDevices.forEach(d => {    
+                        if(d.componentType === "DECODER" && d.componentModel === "cat862"){
+                            sn = {
+                                auditorium: audNum,
+                                serialNumber: d.serialnumber
+                            }
+                        }
+                    });
+                    serverArray[audNum - 1] = sn;
                 }
                 catch(err) {
                     throw err;
@@ -119,7 +147,7 @@ async function getServerSerial() {
         }
     });
 
-    return serverTypeArr;
+    return serverArray;
 }
 
 export class envDiscover {
