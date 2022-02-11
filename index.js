@@ -6,4 +6,4 @@ import convert from 'xml-js';
 let discoveryService = new envDiscover();
 
 discoveryService.start()
-    .then(res => console.log(res));
+    .then(res => {console.log(res)});

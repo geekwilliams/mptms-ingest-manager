@@ -14,11 +14,9 @@ if (result.error){
 }
 
 
-let serverSerials = [];
 
 async function getServerSerial() {
     const env = process.env
-    const theaterCount = env.AUDITORIUM_COUNT;
     const controlNetwork = env.CONTROL_NETWORK;
     const mediaNetwork = env.MEDIA_NETWORK;
     let serverTypeArr = [];
@@ -33,7 +31,7 @@ async function getServerSerial() {
         }
     }
     
-    serverTypeArr.forEach(async element => {
+    for (const element of serverTypeArr){
         let audNum = parseInt(element[0].substring(8, 10));
         if(isNaN(audNum) || audNum === 0){ 
             let err = "Theater info for " + element[0] + " is malformatted.  Please correct config file. (Zero auditorium number is not allowed)";
@@ -49,8 +47,18 @@ async function getServerSerial() {
                 // must login first
                 try {
                     let session = await server.Login({ username: "manager", password: "password" });
-                    let serverInfo = await server.GetProductInformation();
-                    serverArray[(audNum - 1)] = serverInfo;
+                    let serverInfoJson = await server.GetProductInformation();
+                    // logout to prevent session from consuming resources during many requests
+                    let logout = await server.Logout();
+
+                    let serverInfo = JSON.parse(serverInfoJson);
+
+                    let imsSerial = {
+                        auditorium: audNum,
+                        serialNumber: serverInfo.GetProductInformationResponse.productInformation.serialNumber
+                    }
+                    serverArray[(audNum - 1)] = imsSerial;
+
                     
                     // TODO: 
                     //      get serial numbers and add into array for IMS
@@ -70,8 +78,8 @@ async function getServerSerial() {
                 let mediaAddress = mediaPrelim[0] + '.' + mediaPrelim[1] + '.' + mediaPrelim[2] + '.' + mediaOct;
                 let dolby = new smi(mediaAddress);
                 try{ 
-                    //let componentInfos = await dolby.systemManagementRequest(smi_operation.SystemManagement.getDeviceComponentInfosRequest, { auditorium: audNum });
-                    let componentInfos = dssResponse;
+                    let componentInfos = await dolby.systemManagementRequest(smi_operation.SystemManagement.getDeviceComponentInfosRequest, { auditorium: audNum });
+                    //let componentInfos = dssResponse;
                     let compElemtents = componentInfos.elements[0].elements[1].elements[0].elements;
                     let serverDevices = [];
                     compElemtents.forEach(element => {
@@ -145,7 +153,7 @@ async function getServerSerial() {
                 let err = "Theater info for " + element[0] + " is likely incorrect. Options are 'IMS' or 'DOLBY'. Please correct config file.";
                 throw err;
         }
-    });
+    };
 
     return serverArray;
 }
@@ -155,8 +163,8 @@ export class envDiscover {
 
     }
     start(){
-        return new Promise((resolve, reject) => {
-            let test = getServerSerial();
+        return new Promise(async (resolve, reject) => {
+            let test = await getServerSerial();
             resolve(test);
         });
     }
