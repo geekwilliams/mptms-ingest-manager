@@ -76,11 +76,11 @@ async function getServerSerial() {
                 let mediaPrelim = mediaNetwork.split('.', 3);
                 let mediaOct = audNum + 100;
                 let mediaAddress = mediaPrelim[0] + '.' + mediaPrelim[1] + '.' + mediaPrelim[2] + '.' + mediaOct;
-                let dolby = new smi(mediaAddress);
+                let dolby = new smi('10.95.128.30');
                 try{ 
-                    let componentInfos = await dolby.systemManagementRequest(smi_operation.SystemManagement.getDeviceComponentInfosRequest, { auditorium: audNum });
+                    let componentInfos = await dolby.systemManagementRequest(smi_operation.SystemManagement.getDeviceComponentInfosRequest, { auditoriumNumber: audNum });
                     //let componentInfos = dssResponse;
-                    let compElemtents = componentInfos.elements[0].elements[1].elements[0].elements;
+                    let compElemtents = componentInfos.data;
                     let serverDevices = [];
                     compElemtents.forEach(element => {
                         if(element.name === "deviceComponentInfo"){ 
