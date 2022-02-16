@@ -13,6 +13,8 @@
     "dotenv": "^16.0.0",
     "express": "^4.17.2",
     "index.js": "^0.0.3",
+    "linux-blockutils": "^0.2.0",
+    "linux-mountutils": "^1.0.2",
     "xml-js": "^1.6.11"
   }
 }
