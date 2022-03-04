@@ -10,7 +10,9 @@ import { exec } from 'child_process';
 const log = "/var/log/mptms-ingest-manager.log";
 
 export class automount { 
-    constructor(){}
+    constructor(){
+        this.getRoot().then(res => this.rootMount = res)
+    }
 
     start(){
 
@@ -62,7 +64,7 @@ export class automount {
             try {
 
                 if (this.isLinux){
-                    let currentMounts = getlinuxmounted();
+                    let currentMounts = getlinuxmounted(this.rootMount);
                     console.log(currentMounts);
 
                     resolve(currentMounts);
@@ -78,6 +80,50 @@ export class automount {
 
 
 
+    }
+
+    getRoot(){
+        return new Promise((resolve, reject) => {let rootMount = [];
+            if(!fs.existsSync("/etc/fstab")){ 
+                console.log({"mounted": false, "error": "Can't read fstab"})
+                reject()
+            }
+            else{ 
+                let fstab = fs.readFileSync("/etc/fstab", { 'encoding': 'ascii' }).split("\n");
+                let mounts = []
+                for(let m in fstab){ 
+                    if (fstab[m].includes('#')){ 
+                        //do nothing
+                    }
+                    else{ 
+                        mounts.push(fstab[m])
+                    }
+                }
+                // find root
+                for(let l in mounts){ 
+                    let charArray = mounts[l].split(' ');
+                    let found = false;
+                    for(let Element in charArray) { 
+                        //console.log(charArray[Element]);
+                        if(charArray[Element].includes('/') && (charArray[Element].length) == 1){ 
+                            // found root
+                            found = true;
+                            fs.readlink(charArray[0], (err, linkString) => { 
+                                let s = linkString.split('/');
+                                rootMount = "/dev/" + s[2];
+                                resolve(rootMount.slice(0,-1));
+                            });
+                        
+                        }
+                        if(found) { 
+                            break;
+                        }
+                    }
+                    if(found) {
+                        break;
+                    }
+                }
+            }});
     }
 
 
@@ -157,11 +203,11 @@ function getLinuxDrivePartitions(){
 }
 
 
-async function autoumountdrive(){
+async function autoumountdrive(root){
     // current mounts and unmount if drive is not connected
 
     try {
-        let currentMounts = await getlinuxmounted();
+        let currentMounts = await getlinuxmounted(root);
         for (var i in currentMounts){
         var tmount = currentMounts[i];
 
@@ -206,7 +252,7 @@ async function autoumountdrive(){
 }
 
 
-async function getlinuxmounted(){
+async function getlinuxmounted(root){
 
     // Need mtab to check existing mounts
     if (!fs.existsSync("/etc/mtab")) {
@@ -234,7 +280,7 @@ async function getlinuxmounted(){
         oneMount.fstype = mountDetail[2];
         oneMount.fsopts = mountDetail[3];
 
-        if (oneMount.device.includes("/dev/sd") && !oneMount.device.includes("/dev/sda") )
+        if (oneMount.device.includes("/dev/sd") && !oneMount.device.includes("/dev/sda") && !oneMount.device.includes(root));
         {
             mountInfo.push(oneMount);
     
@@ -281,4 +327,6 @@ function logWrite(message, path){
     });
 
 }
+
+
 
