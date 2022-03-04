@@ -1,10 +1,13 @@
 import * as mountutils  from 'linux-mountutils';
 import * as blockutils from 'linux-blockutils';
-import { fs } from 'fs';
+import * as fs from 'fs';
 import { exec } from 'child_process';
+
 
 // This is imported from OLD TMS_SERVER code
 // need to refactor for ES6 and check for runtime(async) issues
+
+const log = "/var/log/mptms-ingest-manager.log";
 
 export class automount { 
     constructor(){}
@@ -16,7 +19,7 @@ export class automount {
              this.automount = true;
     
              this.workerTimer = setInterval(() => {
-    
+                
                  this.removableDriveCheck();
     
               }, 1000);
@@ -83,114 +86,89 @@ export class automount {
 function autoMountDrive() {
 
     // Get Current Drives that are connected but no the sba Drives
-    getLinuxDrivePartitions().then((parList) =>
-    {
-        //console.log("parList:" + parList);
+    getLinuxDrivePartitions()
+        .then((parList) => {
+            //console.log("parList:" + parList);
 
-        // Go throught list and Check if it is already mounted.
-        // If not Mount the drive to /media/sd(x)
+            // Go throught list and Check if it is already mounted.
+            // If not Mount the drive to /media/sd(x)
 
 
-        for (var parIndex in parList)
-        {
-            var parFullName = '/dev/' + parList[parIndex].name;
-            var parMountPath ='/media/' + parList[parIndex].name;
-
-            // Check if drive is Mounted all ready
-
-            var checkresult = mountutils.isMounted(parFullName, true);
-
-            if (checkresult.mounted == false)
+            for (var parIndex in parList)
             {
+                var parFullName = '/dev/' + parList[parIndex].name;
+                var parMountPath ='/media/' + parList[parIndex].name;
 
-                mountutils.mount(parFullName,parMountPath, { "createDir": true }, function(result) {
-                    if (result.error) {
-                        // Something went wrong!
-                        console.log(result.error);
-                    } else {
-                        // mount succeeded - do stuff here
-                        console.log('mount succeeded: ' + parMountPath);
-                    }
-                });
+                // Check if drive is Mounted all ready
+
+                var checkresult = mountutils.isMounted(parFullName, true);
+
+                if (checkresult.mounted == false)
+                {
+
+                    mountutils.mount(parFullName,parMountPath, { "createDir": true }, function(result) {
+                        if (result.error) {
+                            // Something went wrong!
+                            console.log(result.error);
+                            logWrite("Something went wrong: " + result.error, log).catch(err => console.error("Unable to write to log file.  Check if it exists and is writable."));
+                        } else {
+                            // mount succeeded - do stuff here
+                            console.log('mount succeeded: ' + parMountPath);
+                            logWrite("Succeeded mounting " + parFullName + " at " + parMountPath, log).catch(err => console.error("Unable to write to log file.  Check if it exists and is writable."));
+                        }
+                    });
+                }
             }
-        }
 
-    });
+        })
+        .catch(err => logWrite("Error getting linux drive partitions: " + err).catch(err => console.error("Unable to write to log file.  Check if it exists and is writable.")));
 
 
 }
 
-function getLinuxDrivePartitions()
-{
+function getLinuxDrivePartitions(){
 
-    return new Promise((resolve, reject) =>
-        {
-
-
-            blockutils.getBlockInfo({"ignoredev":"^(sda)"}, function(err,json) {
+    return new Promise((resolve, reject) => {
+        blockutils.getBlockInfo({"ignoredev":"^(sda)"}, function(err,json) {
             if (err) {
                 console.log("ERROR:" + err);
                 reject(err);
             } else {
-
                 var list = [];
-
                 for (var i in json) {
-
                     var driveObject = json[i];
-
+    
                     if (driveObject.TYPE == 'disk')
                     {
-
-                        for (var p in driveObject.PARTITIONS)
-                        {
+                       
+                        for (var p in driveObject.PARTITIONS){
                             var driveParttion = driveObject.PARTITIONS[p];
-
-
                             var driveInfo  = { fullname: '/dev/' +  driveParttion.NAME , name:  driveParttion.NAME  };
-
-
-
-
                             list.push(driveInfo);
                         }
+                        
                     }
                 }
-
                 resolve(list);
                 //console.log(JSON.stringify(json,null,"  "));
             }
         });
-
-
-        });
-
-
-
-
-
-
-
-
+    });
 }
 
 
 async function autoumountdrive(){
     // current mounts and unmount if drive is not connected
 
-    let currentMounts = await getlinuxmounted();
-   // console.log('autounmountdrive');
-    //console.log(currentMounts);
-
-
-    for (var i in currentMounts)
-    {
+    try {
+        let currentMounts = await getlinuxmounted();
+        for (var i in currentMounts){
         var tmount = currentMounts[i];
 
 
         // Check if device is connected
         // If not Removie Device mount
-         doesDeviceExist(tmount.device).then((deviceExist) => {
+        doesDeviceExist(tmount.device).then((deviceExist) => {
 
 
              //console.log(tmount.device + ': ' + deviceExist);
@@ -210,15 +188,21 @@ async function autoumountdrive(){
                     }
                 });
 
-
             }
 
-        });
+        }).catch(err => console.error(err));
+        }   
     }
+    catch(err){ 
+        console.error("There was an issue: " + err);
+        logWrite("There was a problem: " + err, log).catch(err => console.error("Unable to write to log file.  Check if it exists and is writable."));
+
+    }
+   // console.log('autounmountdrive');
+    //console.log(currentMounts);
 
 
-
-
+    
 }
 
 
@@ -232,14 +216,16 @@ async function getlinuxmounted(){
     let mountInfo = [];
     let mtab;
     try{ 
-        mtab = await fs.readFileSync("/etc/mtab", { 'encoding': 'ascii' }).split("\n");
+        mtab = fs.readFileSync("/etc/mtab", { 'encoding': 'ascii' }).split("\n");
     
     }
     catch(err){ 
         throw err;
     }
     // Interate through and find the one we're looking for
-    for (i in mtab) {
+    for (let i in mtab) {
+
+
         let mountDetail = mtab[i].split(" ");
 
         let oneMount = {};
@@ -255,19 +241,15 @@ async function getlinuxmounted(){
         }
 
     }
-
     return mountInfo;
 }
 
 function doesDeviceExist(devicename) {
     return new Promise((resolve, reject) =>
         {
-
-
-            getlinuxdrivePartitoins().then((parList) =>
+            getLinuxDrivePartitions().then((parList) =>
             {
                 //console.log(parList);
-
                 for (var i in parList)
                 {
                     var driveObject = parList[i];
@@ -280,6 +262,23 @@ function doesDeviceExist(devicename) {
                 resolve(false);
              });
         });
+
+}
+
+function logWrite(message, path){
+    return new Promise((resolve, reject) => {
+        let d = Date();
+        let dateString = "[ " + d + " ]    "; 
+        fs.writeFile(path, (dateString + message), err => {
+            if(err){ 
+                console.error("Error writing to log file @ " + path);
+                reject(err);
+            }
+            else{ 
+                resolve();
+            }
+        });
+    });
 
 }
 
