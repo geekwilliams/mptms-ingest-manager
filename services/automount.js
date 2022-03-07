@@ -71,10 +71,12 @@ export class automount {
 
                 this.workerTimer = setInterval(async () => {
                     // need to keep tasks from overlapping 
-                    if(!processRunning){ 
+                    if(true){ 
                         processRunning = true;
                         mountList = await automountService(this.blacklist, this.mountList);
                         this.mountList = mountList;
+
+                        console.log(this.mountList);
                         processRunning = false
                     }
                     else{ 
