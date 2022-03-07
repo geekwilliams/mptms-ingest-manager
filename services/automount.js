@@ -401,15 +401,16 @@ function logWrite(message, path){
     return new Promise((resolve, reject) => {
         let d = Date();
         let dateString = "[ " + d + " ]    "; 
-        fs.writeFile(path, (dateString + message), err => {
-            if(err){ 
-                console.error("Error writing to log file @ " + path);
-                reject(err);
-            }
-            else{ 
-                resolve();
-            }
-        });
+        let fsStream = fs.createWriteStream(path, { flags: 'a' });
+        try{
+            fsStream.write(message + "\n");
+            fsStream.end();
+            resolve();
+        }
+        catch (err) { 
+            console.error("Error writing to log file");
+            resolve();
+        }
     });
 }
 
