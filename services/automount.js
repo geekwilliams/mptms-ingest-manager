@@ -33,11 +33,15 @@ export class automount {
             try{
                 // get root 
                 let root = await this.getRoot();
-                (this.blacklist).push({ type: 'root', path: root });
+                let blacklist = this.blacklist;
+                blacklist.push({ type: 'root', path: root });
+                //(this.blacklist).push({ type: 'root', path: root });
 
                 // get content
                 let content = await this.getContentPartition();
-                (this.blacklist).push({ type: 'content', path: content });
+
+                blacklist.push({ type: 'content', path: content });
+                this.blacklist = blacklist;
 
             }
             catch(err){ 
