@@ -33,7 +33,7 @@ export class automount {
             try{
                 // get root 
                 let root = await this.getRoot();
-                let blacklist = this.blacklist;
+                let blacklist = [];
                 blacklist.push({ type: 'root', path: root });
                 //(this.blacklist).push({ type: 'root', path: root });
 
