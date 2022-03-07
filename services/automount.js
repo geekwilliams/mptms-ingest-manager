@@ -403,7 +403,7 @@ function logWrite(message, path){
         let dateString = "[ " + d + " ]    "; 
         let fsStream = fs.createWriteStream(path, { flags: 'a' });
         try{
-            fsStream.write(message + "\n");
+            fsStream.write(dateString + message + "\n");
             fsStream.end();
             resolve();
         }
