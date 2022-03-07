@@ -82,7 +82,7 @@ export class automount {
                     }
                    
 
-                }, 1000);
+                }, 5000);
     
             }
             catch(err){ 
