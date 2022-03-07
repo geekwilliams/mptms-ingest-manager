@@ -42,8 +42,8 @@ export class automount {
             }
             catch(err){ 
                 console.error("Unable to determine root or content partition.  See log for details."); 
-                logWrite("Unable to determine one or more system drives. Please see error for more information.", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
-                logWrite(err, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                await logWrite("Unable to determine one or more system drives. Please see error for more information.", log)
+                await logWrite(err, log)
                 
                 throw err
             }
