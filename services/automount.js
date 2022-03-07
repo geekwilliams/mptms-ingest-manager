@@ -28,20 +28,22 @@ export class automount {
         }
 
         if(!this.blacklist){ 
-            logWrite("No dev blacklist specified. Using discovery for root and content partitions", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+            await logWrite("No dev blacklist specified. Using discovery for root and content partitions", log)
             console.log("No blacklist configured.  Using discovery for root and content partitions...")
             try{
                 // get root 
                 let root = await this.getRoot();
+                await logWrite("Found root at " + root, log); 
                 let blacklist = [];
                 blacklist.push({ type: 'root', path: root });
                 //(this.blacklist).push({ type: 'root', path: root });
 
                 // get content
                 let content = await this.getContentPartition();
-
+                await logWrite("Found content partition at " + content, log);
                 blacklist.push({ type: 'content', path: content });
                 this.blacklist = blacklist;
+                
 
             }
             catch(err){ 
