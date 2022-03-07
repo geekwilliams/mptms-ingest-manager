@@ -63,6 +63,7 @@ export class automount {
     async start(){
         if (process.platform == 'linux'){
             let processRunning = false;
+            let mountList = [];
             console.log('Running on linux');
             try{
                 await this.init();
@@ -72,7 +73,8 @@ export class automount {
                     // need to keep tasks from overlapping 
                     if(!processRunning){ 
                         processRunning = true;
-                        this.mountList = await automountService(this.blacklist, this.mountList);
+                        mountList = await automountService(this.blacklist, this.mountList);
+                        this.mountList = mountList;
                         processRunning = false
                     }
                     else{ 
