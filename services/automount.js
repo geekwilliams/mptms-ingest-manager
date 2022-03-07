@@ -24,7 +24,7 @@ export class automount {
         // make sure log file exists
         if(!fs.existsSync(log)){
             let date = new Date() 
-            fs.writeFileSync(log, "[ " + date + " ]    -------- BEGIN LOG FILE --------"  );
+            fs.writeFileSync(log, "[ " + date + " ]    -------- BEGIN LOG FILE --------\n"  );
         }
 
         if(!this.blacklist){ 
