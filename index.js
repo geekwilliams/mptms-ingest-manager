@@ -7,7 +7,6 @@ let discoveryService = new envDiscover();
 
 let automountService = new automount();
 
-discoveryService.start()
-    .then(res => {console.log(res)});
+//discoveryService.start().then(res => {console.log(res)});
 
-automountService.start()
+automountService.start();

@@ -75,6 +75,7 @@ export class automount {
                     else{ 
                         this.automountServiceTask = true;
                         this.mountList = await automountService(this.blacklist, this.mountList);
+                        console.log(this.mountList);
                         this.automountServiceTask = false;
                     }
                    
