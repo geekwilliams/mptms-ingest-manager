@@ -1,8 +1,12 @@
 import * as mountutils  from 'linux-mountutils';
 import * as blockutils from 'linux-blockutils';
 import * as fs from 'fs';
-import { exec } from 'child_process';
+import { json } from 'express/lib/response';
 
+// re-write 3/6/2022 to fix spaghetti mess CW
+// DSS base servers have bootloader flash from Dolby Cinema system.  Exception for these devices has been hardcoded
+//
+// regex for new drive detection filters out loop and sd* devices.  May need to change this if issues arise with this implementation
 
 // This is imported from OLD TMS_SERVER code
 // need to refactor for ES6 and check for runtime(async) issues
@@ -10,22 +14,86 @@ import { exec } from 'child_process';
 const log = "/var/log/mptms-ingest-manager.log";
 
 export class automount { 
-    constructor(){
-        this.getRoot().then(res => this.rootMount = res)
+    constructor(devBlacklist){
+        this.blacklist = devBlacklist;
+        this.automountServiceTask = false;
+        this.mountList = [];
     }
 
-    start(){
+    // set env or get root and content partitions manually
+    async init(){
+        // make sure log file exists
+        if(!fs.existsSync(log)){
+            let date = new Date() 
+            fs.writeFileSync(log, "[ " + date + " ]    -------- BEGIN LOG FILE --------"  );
+        }
 
-        if (process.platform == 'linux'){
-             console.log('Running on linux');
-             this.automount = true;
-    
-             this.workerTimer = setInterval(() => {
+        if(!this.blacklist){ 
+            logWrite("No dev blacklist specified. Using discovery for root and content partitions", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+            console.log("No blacklist configured.  Using discovery for root and content partitions...")
+            try{
+                // get root 
+                let root = await this.getRoot();
+                (this.blacklist).push({ type: 'root', path: root });
+
+                // get content
+                let content = await this.getContentPartition();
+                (this.blacklist).push({ type: 'content', path: content });
+
+            }
+            catch(err){ 
+                console.error("Unable to determine root or content partition.  See log for details."); 
+                logWrite("Unable to determine one or more system drives. Please see error for more information.", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                logWrite(err, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                 
-                 this.removableDriveCheck();
+                throw err
+            }
+        }
+        else{ 
+            console.log("Using configured blacklist.");
+            logWrite("Using configured blacklist.", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+        }
+    }
+
+    async start(){
+        if (process.platform == 'linux'){
+            console.log('Running on linux');
+            try{
+                await this.init();
+                this.automount = true;
+
+                this.workerTimer = setInterval(async () => {
+                    // need to keep tasks from overlapping 
+                    if(this.automountServiceTask){ 
+                        console.log("Operation in progress");
+                    }
+                    else{ 
+                        this.automountServiceTask = true;
+                        this.mountList = await automountService(this.blacklist, this.mountList);
+                        this.automountServiceTask = false;
+                    }
+                   
+
+                }, 1000);
     
-              }, 1000);
-    
+            }
+            catch(err){ 
+                console.log("There was an error starting automount service.");
+                console.error(err);
+                logWrite("Error starting automount service", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+            }
+
+            
+        }
+        else if (process.platform == 'win32'){ 
+            console.log('Running on Windows');
+            this.automount = false;
+            
+            console.log("This application will not run on windows.");
+            logWrite("Application is not compatible with windows.  Terminating...", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+        }
+        else {  
+            console.error("Cannot determine platform.  This application will not run.");
         }
             
     }
@@ -38,52 +106,9 @@ export class automount {
         }
     }
 
-    getSystemDrive(){
-        if (process.platform == 'linux'){
-            this.systemDrive = 'sda';
-        }
-        else if (process.platform == 'win32'){
-            this.systemDrive = 'C:\\';
-        }
-    }
-
-    removableDriveCheck(){
-
-        if (this.automount){
-            //  Check if we need to mount a drive
-            autoMountDrive();
-
-            // check of we nee to unmount drive
-            autoumountdrive();
-        }
-    }
-
-    getAttachedDrives(){
-        return new Promise(function (resolve, reject) {
-
-            try {
-
-                if (this.isLinux){
-                    let currentMounts = getlinuxmounted(this.rootMount);
-                    console.log(currentMounts);
-
-                    resolve(currentMounts);
-                }
-
-                reject();
-            }
-            catch (e) {
-                reject();
-            }
-
-        });
-
-
-
-    }
-
     getRoot(){
-        return new Promise((resolve, reject) => {let rootMount = [];
+        return new Promise((resolve, reject) => {
+            let rootMount = [];
             if(!fs.existsSync("/etc/fstab")){ 
                 console.log({"mounted": false, "error": "Can't read fstab"})
                 reject()
@@ -108,11 +133,25 @@ export class automount {
                         if(charArray[Element].includes('/') && (charArray[Element].length) == 1){ 
                             // found root
                             found = true;
-                            fs.readlink(charArray[0], (err, linkString) => { 
-                                let s = linkString.split('/');
-                                rootMount = "/dev/" + s[2];
-                                resolve(rootMount.slice(0,-1));
-                            });
+                            let devPath;
+                            if(charArray[0].includes("UUID=")){ 
+                                let uuid = (charArray[0].split('=', 2))[1];
+                                devPath = "/dev/disk/by-uuid/" + uuid;
+                                // get link
+                                fs.readlink(devPath, (err, linkString) => { 
+                                    let s = linkString.split('/');
+                                    contentMount = "/dev/" + s[2];
+                                    resolve(contentMount.slice(0,-1));
+                                });
+
+                            }
+                            else {
+                                fs.readlink(charArray[0], (err, linkString) => { 
+                                    let s = linkString.split('/');
+                                    contentMount = "/dev/" + s[2];
+                                    resolve(contentMount.slice(0,-1));
+                                });
+                            }
                         
                         }
                         if(found) { 
@@ -123,192 +162,229 @@ export class automount {
                         break;
                     }
                 }
-            }});
+            }
+        });
+    }
+
+    getContentPartition(){ 
+        return new Promise((resolve, reject) => { 
+            let contentMount = [];
+            if(!fs.existsSync("/etc/fstab")){ 
+                console.log({"mounted": false, "error": "Can't read fstab"})
+                reject()
+            }
+            else{ 
+                let fstab = fs.readFileSync("/etc/fstab", { 'encoding': 'ascii' }).split("\n");
+                let mounts = []
+                for(let m in fstab){ 
+                    if (fstab[m].includes('#')){ 
+                        //do nothing
+                    }
+                    else{ 
+                        mounts.push(fstab[m])
+                    }
+                }
+                // find root
+                for(let l in mounts){ 
+                    let charArray = mounts[l].split(' ');
+                    let found = false;
+                    for(let Element in charArray) { 
+                        //console.log(charArray[Element]);
+                        if((charArray[Element].includes('/tmsserver') && (charArray[Element].length) == 10) || (charArray[Element].includes('/tmsserver/') && (charArray[Element].length) == 11)){ 
+                            // found content
+                            found = true;
+                            // deal with "UUID="
+                            let devPath;
+                            if(charArray[0].includes("UUID=")){ 
+                                let uuid = (charArray[0].split('=', 2))[1];
+                                devPath = "/dev/disk/by-uuid/" + uuid;
+                                // get link
+                                fs.readlink(devPath, (err, linkString) => { 
+                                    let s = linkString.split('/');
+                                    contentMount = "/dev/" + s[2];
+                                    resolve(contentMount.slice(0,-1));
+                                });
+
+                            }
+                            else {
+                                fs.readlink(charArray[0], (err, linkString) => { 
+                                    let s = linkString.split('/');
+                                    contentMount = "/dev/" + s[2];
+                                    resolve(contentMount.slice(0,-1));
+                                });
+                            }
+                        
+                        }
+                        if(found) { 
+                            break;
+                        }
+                    }
+                    if(found) {
+                        break;
+                    }
+                }
+            }
+        })
     }
 
 
 }
 
-function autoMountDrive() {
+function automountService(blacklist, mounted){
+    return new Promise(async (resolve, reject) => {
+        let mList = mounted | [];
+        let blArr = blacklist;
+        // get info from blacklist array
+        let exString = '';
+        blArr.forEach(e => {
+            exString += (e.path).slice(-1);
+        }); 
 
-    // Get Current Drives that are connected but no the sba Drives
-    getLinuxDrivePartitions()
-        .then((parList) => {
-            //console.log("parList:" + parList);
-
-            // Go throught list and Check if it is already mounted.
-            // If not Mount the drive to /media/sd(x)
-
-
-            for (var parIndex in parList)
-            {
-                var parFullName = '/dev/' + parList[parIndex].name;
-                var parMountPath ='/media/' + parList[parIndex].name;
-
-                // Check if drive is Mounted all ready
-
-                var checkresult = mountutils.isMounted(parFullName, true);
-
-                if (checkresult.mounted == false)
-                {
-
-                    mountutils.mount(parFullName,parMountPath, { "createDir": true }, function(result) {
-                        if (result.error) {
-                            // Something went wrong!
-                            console.log(result.error);
-                            logWrite("Something went wrong: " + result.error, log).catch(err => console.error("Unable to write to log file.  Check if it exists and is writable."));
-                        } else {
-                            // mount succeeded - do stuff here
-                            console.log('mount succeeded: ' + parMountPath);
-                            logWrite("Succeeded mounting " + parFullName + " at " + parMountPath, log).catch(err => console.error("Unable to write to log file.  Check if it exists and is writable."));
+        // filters blacklist + loop and sr0 devices
+        let ex = String.raw`(^((sd[" + ${exString} + "])|loop|sr0))`;
+        try {
+            let blDevs = await getBlockDevices(ex);
+            for(d in blDevs){ 
+                let parts = blDevs[d].PARTITIONS;
+                let dev;
+                if(!parts){ 
+                    // no or single partition case
+                    dev = blDevs[b].NAME;
+                    let isMounted = mountutils.isMounted("/dev/" + dev, true);
+                    if(!isMounted.mounted){ 
+                        // mount if it is not mounted
+                        let mountResult = mount("/dev/" + dev, "/media/" + dev, { "createDir": true, "readonly": true, "mountPath": mountPoint, "dirMode": '0444'});
+                        if(mountResult.error){ 
+                            logWrite("There was an error mounting disk: ", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            logWrite(mountResult.error, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                         }
-                    });
+                        else { 
+                            logWrite("Device /dev/" + dev + " mounted at /media/" + dev, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            // push device onto array after successfull mount
+                            mList.push({ device: '/dev/' + dev, mountPoint: '/media/' + dev, uuid: '' });
+                        }
+                    }
+
+                }
+                else { 
+                    // drill down into partitions
+                    for(p in parts){ 
+                        let isMounted = mountutils("/dev/" + parts[p].NAME, true);
+                        if(!isMounted.mounted){ 
+                            let mountResult = mount("/dev/" + parts[p].NAME, "/media/" + parts[p].NAME, { "createDir": true, "readonly": true, "mountPath": mountPoint, "dirMode": '0444'});
+                            if(mountResult.error){ 
+                                logWrite("There was an error mounting disk: ", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                                logWrite(mountResult.error, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            }
+                            else { 
+                                logWrite("Device /dev/" + dev + " mounted at /media/" + dev, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)}); 
+                                mList.push({ device: '/dev/' + dev, mountPoint: '/media/' + dev, uuid: parts[p].UUID });
+                            }    
+                        }
+
+                    }   
                 }
             }
+        }
 
-        })
-        .catch(err => logWrite("Error getting linux drive partitions: " + err).catch(err => console.error("Unable to write to log file.  Check if it exists and is writable.")));
+        catch (err){
+            logWrite("Error getting block devs... " + err, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+            console.error("Error getting block devs...   " + err);
+        }
 
+        // Now deal with unplugged devs
+        try { 
+            let diskByUUID = fs.readdirSync('/dev/disk/by-uuid/');
+            let mediaMounts = fs.readdirSync('/media/');
+            let blockDevs = await getBlockDevices(blArr); 
 
-}
-
-function getLinuxDrivePartitions(){
-
-    return new Promise((resolve, reject) => {
-        blockutils.getBlockInfo({"ignoredev":"^(sda)"}, function(err,json) {
-            if (err) {
-                console.log("ERROR:" + err);
-                reject(err);
-            } else {
-                var list = [];
-                for (var i in json) {
-                    var driveObject = json[i];
-    
-                    if (driveObject.TYPE == 'disk')
-                    {
-                       
-                        for (var p in driveObject.PARTITIONS){
-                            var driveParttion = driveObject.PARTITIONS[p];
-                            var driveInfo  = { fullname: '/dev/' +  driveParttion.NAME , name:  driveParttion.NAME  };
-                            list.push(driveInfo);
+            for(i in mList) {
+                let d = mList[i]; 
+                if(!diskByUUID.includes(d.uuid)){ 
+                    // worst case scenario first (dev has no uuid or no partition but is mounted somehow)
+                    // find index of device in blockDevs
+                    let devIndex;
+                    for(dev in blockDevs){ 
+                        if(blockDevs[dev].NAME == (d.device).slice(-3)){ 
+                            // found it (no need to unmount)
+                            devIndex = dev;
                         }
-                        
+                    }
+
+                    // if dev is not found then unmount and remove dir
+                    if(!devIndex){ 
+                        let umountResult = await unmount(d.mountPoint, true, { "removeDir": true });
+                        if(umountResult.error){ 
+                            logWrite("There was an error unmounting device at " + d.device, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                        }
+                        else { 
+                            logWrite("Successfully unmounted device at " + d.mountPoint, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            // return list of mounts to main class when finished
+                            resolve(mList.splice(i, 1))
+                        }
                     }
                 }
-                resolve(list);
-                //console.log(JSON.stringify(json,null,"  "));
+                else { 
+                    // found uuid, no need to umount 
+                }
+            }
+        }   
+        catch (err){ 
+            console.log("There was an error checking on mounts");
+            console.log(err)
+        }
+    });
+}
+
+function getBlockDevices(exclusions){ 
+    // Promisify stupid blockutils so we can make the server function nicer to look at
+    return new Promise((resolve, reject) => {
+        blockutils.getBlockInfo({ "ignoredev": exclusions }, (err, json) => {   
+            if(err){ 
+                reject(err);
+            }
+            else{ 
+                resolve(json);
+            }
+        }); 
+    });
+}
+
+function mount(device, mountPoint, mountOptions){ 
+    // Promisify stupid mount function to make the server function nicer to look at
+    return new Promise((resolve, reject) => {
+        if(!mountOptions){ 
+            mountOptions = { "createDir": true, "readonly": true, "mountPath": mountPoint, "dirMode": '0444'} 
+        }
+
+        mountutils.mount(device, mountPoint, mountOptions, (result) => {
+            if(result.error){ 
+                console.error(result.error);
+                resolve(result);
+            }
+            else{
+                resolve(result);
             }
         });
     });
 }
 
-
-async function autoumountdrive(root){
-    // current mounts and unmount if drive is not connected
-
-    try {
-        let currentMounts = await getlinuxmounted(root);
-        for (var i in currentMounts){
-        var tmount = currentMounts[i];
-
-
-        // Check if device is connected
-        // If not Removie Device mount
-        doesDeviceExist(tmount.device).then((deviceExist) => {
-
-
-             //console.log(tmount.device + ': ' + deviceExist);
-
-            if (deviceExist == false)
-            {
-                // Device doesn't exit so clean up mount by removing it.
-
-
-                mountutils.umount(tmount.device, true, { "removeDir": true }, function(result) {
-                    if (result.error) {
-                        // Something went wrong!
-                        console.log(result.error);
-                    } else {
-                        // mount succeeded - do stuff here
-                        console.log('umount succeeded: ' + tmount.device);
-                    }
-                });
-
-            }
-
-        }).catch(err => console.error(err));
-        }   
-    }
-    catch(err){ 
-        console.error("There was an issue: " + err);
-        logWrite("There was a problem: " + err, log).catch(err => console.error("Unable to write to log file.  Check if it exists and is writable."));
-
-    }
-   // console.log('autounmountdrive');
-    //console.log(currentMounts);
-
-
-    
-}
-
-
-async function getlinuxmounted(root){
-
-    // Need mtab to check existing mounts
-    if (!fs.existsSync("/etc/mtab")) {
-        return({"mounted": false, "error": "Can't read mtab"});
-    }
-
-    let mountInfo = [];
-    let mtab;
-    try{ 
-        mtab = fs.readFileSync("/etc/mtab", { 'encoding': 'ascii' }).split("\n");
-    
-    }
-    catch(err){ 
-        throw err;
-    }
-    // Interate through and find the one we're looking for
-    for (let i in mtab) {
-
-
-        let mountDetail = mtab[i].split(" ");
-
-        let oneMount = {};
-        oneMount.device = mountDetail[0];
-        oneMount.mountpoint = mountDetail[1];
-        oneMount.fstype = mountDetail[2];
-        oneMount.fsopts = mountDetail[3];
-
-        if (oneMount.device.includes("/dev/sd") && !oneMount.device.includes("/dev/sda") && !oneMount.device.includes(root));
-        {
-            mountInfo.push(oneMount);
-    
+function unmount(mountPoint, isDev, options){ 
+    // Promisify unmount function to make server function nicer to look at
+    return new Promise((resolve, reject) => { 
+        if(!options){ 
+            options = { "removeDir": true }
         }
-
-    }
-    return mountInfo;
-}
-
-function doesDeviceExist(devicename) {
-    return new Promise((resolve, reject) =>
-        {
-            getLinuxDrivePartitions().then((parList) =>
-            {
-                //console.log(parList);
-                for (var i in parList)
-                {
-                    var driveObject = parList[i];
-
-                    if (driveObject.fullname == devicename) {
-                        resolve(true);
-                    }
-                }
-
-                resolve(false);
-             });
+        mountutils.umount(mountPoint, isDev, options, (result) => {
+            if(result.error){
+                console.error(result.error);
+                resolve(result);
+            }
+            else { 
+                resolve(result);
+            }
         });
-
+    });
 }
 
 function logWrite(message, path){
@@ -325,8 +401,11 @@ function logWrite(message, path){
             }
         });
     });
-
 }
+
+
+
+
 
 
 
