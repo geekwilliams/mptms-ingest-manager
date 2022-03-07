@@ -139,16 +139,16 @@ export class automount {
                                 // get link
                                 fs.readlink(devPath, (err, linkString) => { 
                                     let s = linkString.split('/');
-                                    contentMount = "/dev/" + s[2];
-                                    resolve(contentMount.slice(0,-1));
+                                    rootMount = "/dev/" + s[2];
+                                    resolve(rootMount.slice(0,-1));
                                 });
 
                             }
                             else {
                                 fs.readlink(charArray[0], (err, linkString) => { 
                                     let s = linkString.split('/');
-                                    contentMount = "/dev/" + s[2];
-                                    resolve(contentMount.slice(0,-1));
+                                    rootMount = "/dev/" + s[2];
+                                    resolve(rootMount.slice(0,-1));
                                 });
                             }
                         
