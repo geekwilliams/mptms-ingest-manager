@@ -24,7 +24,7 @@ export class automount {
     async init(){
         // make sure log file exists
         if(!fs.existsSync(log)){
-            fs.writeFileSync(log, fullMessage);
+            fs.writeFileSync(log, '');
             logWrite('-------------------- BEGIN LOG --------------------', 'init', log);
             
 
