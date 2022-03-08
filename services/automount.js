@@ -278,7 +278,7 @@ function automountService(blacklist, mounted){
                 }
                 else { 
                     // drill down into partitions
-                    for(p in parts){ 
+                    for(let p in parts){ 
                         let isMounted = mountutils("/dev/" + parts[p].NAME, true);
                         if(!isMounted.mounted){ 
                             let mountResult = mount("/dev/" + parts[p].NAME, "/media/" + parts[p].NAME, { "createDir": true, "readonly": true, "mountPath": mountPoint, "dirMode": '0444'});
