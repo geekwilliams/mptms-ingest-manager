@@ -78,7 +78,6 @@ export class automount {
                         processRunning = true;
                         let mountListReturn; 
                         mountListReturn = await automountService(this.blacklist, mountList);
-                        console.log(mountListReturn);
                         if(!mountListReturn){ 
                             console.log("No new mounts");
                         }
@@ -87,7 +86,6 @@ export class automount {
                             this.mountList = mountListReturn;
                         }
 
-                        console.log(this.mountList);
                         processRunning = false
                     }
                     else{ 
@@ -343,10 +341,9 @@ function automountService(blacklist, mounted){
                     }
                     else {
                         // umount and delete dir
-                        console.log(mediaMounts[mount]);
-                        let unmountResult = await unmount('/media/' + mediaMounts[mount], true);
+                        let unmountResult = await unmount('/dev/' + mediaMounts[mount], true);
                         if(!unmountResult.error){ 
-                            logWrite("Unmounted device " + chalk.yellowBright('/dev/' + mediaMounts[mount]) + " previously at " + chalk.bgBlueBright('/media/' + mediaMounts[mount]), 'info', log);
+                            logWrite("Unmounted device " + chalk.yellowBright('/dev/' + mediaMounts[mount]) + " previously at " + chalk.blueBright('/media/' + mediaMounts[mount]), 'info', log);
                             let removeIndex;
                             for(let i in mList){ 
                                 if(mList[i].mountPoint == ('/media/' + mediaMounts[mount])){ 
@@ -432,6 +429,7 @@ function unmount(mountPoint, isDev, options){
                 resolve(result);
             }
         });
+
     });
 }
 
