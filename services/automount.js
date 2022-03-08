@@ -24,8 +24,18 @@ export class automount {
     async init(){
         // make sure log file exists
         if(!fs.existsSync(log)){
-            let date = new Date() 
-            fs.writeFileSync(log, "[ " + date + " ]    -------- BEGIN LOG FILE --------\n"  );
+            let m = new Date();
+            let dateString = "[ " +
+                m.getUTCFullYear() + "/" +
+                ("0" + (m.getUTCMonth()+1)).slice(-2) + "/" +
+                ("0" + m.getUTCDate()).slice(-2) + " " +
+                ("0" + m.getUTCHours()).slice(-2) + ":" +
+                ("0" + m.getUTCMinutes()).slice(-2) + ":" +
+                ("0" + m.getUTCSeconds()).slice(-2) + " ] ";
+    
+            let fullMessage = "[ " + chalk.bgBlueBright("INIT") + " ]";  + dateString + '   ' + "-------------------- BEGIN LOG --------------------\n"; 
+            fs.writeFileSync(log, fullMessage);
+
         }
 
         if(!this.blacklist){ 
