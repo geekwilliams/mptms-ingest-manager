@@ -33,8 +33,9 @@ export class automount {
                 ("0" + m.getUTCMinutes()).slice(-2) + ":" +
                 ("0" + m.getUTCSeconds()).slice(-2) + " ] ";
     
-            let fullMessage = "[ " + chalk.bgBlueBright("INIT") + " ]";  + dateString + '   ' + "-------------------- BEGIN LOG --------------------\n"; 
+            let fullMessage = "[ " + chalk.blueBright("INIT") + " ]";  + dateString + '   ' + "-------------------- BEGIN LOG --------------------\n"; 
             fs.writeFileSync(log, fullMessage);
+            
 
         }
 
