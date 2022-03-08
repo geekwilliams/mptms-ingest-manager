@@ -433,7 +433,7 @@ function logWrite(message, type, path){
                 break
         }
 
-        let fullMessage = dateString + typeString + '   '; 
+        let fullMessage = typeString + dateString + '   ' + message;  
         let fsStream = fs.createWriteStream(path, { flags: 'a' });
         try{
             fsStream.write(fullMessage + "\n");
