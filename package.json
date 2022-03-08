@@ -3,12 +3,19 @@
   "version": "0.0.1",
   "description": "Daemon handling ingest of content for cinema servers",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Caleb Williams",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.17.2"
+    "chalk": "^5.0.0",
+    "dotenv": "^16.0.0",
+    "express": "^4.17.2",
+    "index.js": "^0.0.3",
+    "linux-blockutils": "^0.2.0",
+    "linux-mountutils": "^1.0.2",
+    "xml-js": "^1.6.11"
   }
 }
