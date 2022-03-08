@@ -318,42 +318,63 @@ function automountService(blacklist, mounted){
 
         // Now deal with unplugged devs
         try { 
-            let diskByUUID = fs.readdirSync('/dev/disk/by-uuid/');
+            let disksByID = fs.readdirSync('/dev/disk/by-id/');
             let mediaMounts = fs.readdirSync('/media/');
-            let blockDevs = await getBlockDevices(blArr); 
 
-            for(let i in mList) {
-                let d = mList[i]; 
-                if(!diskByUUID.includes(d.uuid)){ 
-                    // worst case scenario first (dev has no uuid or no partition but is mounted somehow)
-                    // find index of device in blockDevs
-                    let devIndex;
-                    for(let dev in blockDevs){ 
-                        if(blockDevs[dev].NAME == (d.device).slice(-3)){ 
-                            // found it (no need to unmount)
-                            devIndex = dev;
-                        }
-                    }
-
-                    // if dev is not found then unmount and remove dir
-                    if(!devIndex){ 
-                        let umountResult = await unmount(d.mountPoint, true, { "removeDir": true });
-                        if(umountResult.error){ 
-                            logWrite("There was an error unmounting device at " + d.device, 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
-                        }
-                        else { 
-                            logWrite("Successfully unmounted device at " + d.mountPoint, 'info', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
-                            // return list of mounts to main class when finished
-                            resolve(mList.splice(i, 1))
-                        }
-                    }
-                }
-                else { 
-                    resolve(mList);
-                    // found uuid, no need to umount 
-                }
+            if(!mediaMounts) { 
+                // nothing in /media/
+                // end of codeblock
                 resolve(mList);
             }
+            else{ 
+                let idLinks = [];
+                // get disks currently plugged in 
+                for(let l in disksByID){ 
+                    let id = fs.readlinkSync('/dev/disk/by-id/' + disksByID[l])
+                    let idarr = id.split('/');
+                    let cid = idarr[2];
+                    idLinks.push(cid)
+                }
+
+                // compare to mounts in /media/ and see what needs to be removed
+                for (mount in mediaMounts){ 
+                    if(idLinks.includes(mediaMounts[mount])){ 
+                        // do nothing. device is still plugged in
+                    }
+                    else {
+                        // umount and delete dir
+                        let unmountResult = await unmount('/media/' + mediaMounts[mount], true);
+                        if(!unmountResult.error){ 
+                            logWrite("Unmounted device " + chalk.bgYellowBright('/dev/' + mediaMounts[mount]) + " previously at " + chalk.bgBlueBright('/media/' + mediaMounts[mount]), 'info', log);
+                            let removeIndex;
+                            for(let i in mList){ 
+                                if(mList[i].mountPoint == ('/media/' + mediaMounts[mount])){ 
+                                    removeIndex = i;
+                                }
+                            }
+                            
+                            // remove object from array after unmounting
+                            let newmlist = []
+                            for(let i; i < mList.length; i++){ 
+                                if(i != removeIndex){ 
+                                    newmlist.push(mList[i]);
+                                }
+                            }
+                            mList = newmlist;
+
+                        }
+                        else{ 
+                            logWrite("Unable to unmount device found at " + chalk.bgYellowBright('/media/' + mediaMounts[mount]), 'error', log);
+                        }
+                    }
+                }
+
+                // after dealing with mounts resolve (end of logic for this run)
+                resolve(mList);
+
+            }
+
+ 
         }   
         catch (err){ 
             console.log("There was an error checking on mounts");
@@ -410,6 +431,12 @@ function unmount(mountPoint, isDev, options){
                 resolve(result);
             }
         });
+    });
+}
+
+function readlink(path){ 
+    return new Promise((resolve, reject) => {
+        fs.readlink
     });
 }
 
