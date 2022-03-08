@@ -272,7 +272,7 @@ function automountService(blacklist, mounted){
                     if(!isMounted.mounted){ 
                         // mount if it is not mounted
                         let mountPoint = "/media/" + dev;
-                        let mountResult = mount("/dev/" + dev, "/media/" + dev, { "createDir": true, "readonly": true, "mountPath": mountPoint, "dirMode": '0444'});
+                        let mountResult = mount("/dev/" + dev, "/media/" + dev, { "createDir": true, "readonly": true, "dirMode": '0444'});
                         if(mountResult.error){ 
                             logWrite("There was an error mounting disk: ", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                             logWrite(mountResult.error, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
@@ -292,7 +292,7 @@ function automountService(blacklist, mounted){
         
                         if(!isMounted.mounted){ 
                             let mountPoint = "/media/" + parts[p].NAME;
-                            let mountResult = mount("/dev/" + parts[p].NAME, "/media/" + parts[p].NAME, { "createDir": true, "readonly": true, "mountPath": mountPoint, "dirMode": '0444'});
+                            let mountResult = mount("/dev/" + parts[p].NAME, "/media/" + parts[p].NAME, { "createDir": true, "readonly": true, "dirMode": '0444'});
                             if(mountResult.error){ 
                                 logWrite("There was an error mounting disk: ", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                                 logWrite(mountResult.error, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
