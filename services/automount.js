@@ -343,9 +343,10 @@ function automountService(blacklist, mounted){
                     }
                     else {
                         // umount and delete dir
+                        console.log(mediaMounts[mount]);
                         let unmountResult = await unmount('/media/' + mediaMounts[mount], true);
                         if(!unmountResult.error){ 
-                            logWrite("Unmounted device " + chalk.bgYellowBright('/dev/' + mediaMounts[mount]) + " previously at " + chalk.bgBlueBright('/media/' + mediaMounts[mount]), 'info', log);
+                            logWrite("Unmounted device " + chalk.yellowBright('/dev/' + mediaMounts[mount]) + " previously at " + chalk.bgBlueBright('/media/' + mediaMounts[mount]), 'info', log);
                             let removeIndex;
                             for(let i in mList){ 
                                 if(mList[i].mountPoint == ('/media/' + mediaMounts[mount])){ 
@@ -364,7 +365,7 @@ function automountService(blacklist, mounted){
 
                         }
                         else{ 
-                            logWrite("Unable to unmount device found at " + chalk.bgYellowBright('/media/' + mediaMounts[mount]), 'error', log);
+                            logWrite("Unable to unmount device found at " + chalk.yellowBright('/media/' + mediaMounts[mount]), 'error', log);
                         }
                     }
                 }
