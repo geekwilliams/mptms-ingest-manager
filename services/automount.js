@@ -375,7 +375,7 @@ function mount(device, mountPoint, mountOptions){
     // Promisify stupid mount function to make the server function nicer to look at
     return new Promise((resolve, reject) => {
         if(!mountOptions){ 
-            mountOptions = { "createDir": true, "readonly": true, "mountPath": mountPoint, "dirMode": '0444'} 
+            mountOptions = { "createDir": true, "readonly": true, "dirMode": '0444'} 
         }
 
         mountutils.mount(device, mountPoint, mountOptions, (result) => {
