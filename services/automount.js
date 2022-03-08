@@ -272,7 +272,7 @@ function automountService(blacklist, mounted){
                         else { 
                             logWrite("Device /dev/" + dev + " mounted at /media/" + dev, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                             // push device onto array after successfull mount
-                            mList.push({ device: '/dev/' + dev, mountPoint: '/media/' + dev, uuid: '' });
+                            mList.push({ 'device': '/dev/' + dev, 'mountPoint': '/media/' + dev, 'uuid': '' });
                         }
                     }
 
@@ -289,7 +289,7 @@ function automountService(blacklist, mounted){
                             }
                             else { 
                                 logWrite("Device /dev/" + dev + " mounted at /media/" + dev, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)}); 
-                                mList.push({ device: '/dev/' + dev, mountPoint: '/media/' + dev, uuid: parts[p].UUID });
+                                mList.push({ 'device': '/dev/' + dev, 'mountPoint': '/media/' + dev, 'uuid': parts[p].UUID });
                             }    
                         }
 
