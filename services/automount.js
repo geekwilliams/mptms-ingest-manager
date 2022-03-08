@@ -24,35 +24,26 @@ export class automount {
     async init(){
         // make sure log file exists
         if(!fs.existsSync(log)){
-            let m = new Date();
-            let dateString = "[ " +
-                m.getUTCFullYear() + "/" +
-                ("0" + (m.getUTCMonth()+1)).slice(-2) + "/" +
-                ("0" + m.getUTCDate()).slice(-2) + " " +
-                ("0" + m.getUTCHours()).slice(-2) + ":" +
-                ("0" + m.getUTCMinutes()).slice(-2) + ":" +
-                ("0" + m.getUTCSeconds()).slice(-2) + " ] ";
-    
-            let fullMessage = "[ " + chalk.blueBright("INIT") + " ]";  + dateString + '   ' + "-------------------- BEGIN LOG --------------------\n"; 
             fs.writeFileSync(log, fullMessage);
+            logWrite('-------------------- BEGIN LOG --------------------', 'init', log);
             
 
         }
 
         if(!this.blacklist){ 
-            await logWrite("No dev blacklist specified. Using discovery for root and content partitions", 'warn', log)
+            logWrite("No dev blacklist specified. Using discovery for root and content partitions", 'warn', log)
             console.log("No blacklist configured.  Using discovery for root and content partitions...")
             try{
                 // get root 
                 let root = await this.getRoot();
-                await logWrite("Found root at " + root, 'info', log); 
+                logWrite("Found root at " + root, 'info', log); 
                 let blacklist = [];
                 blacklist.push({ type: 'root', path: root });
                 //(this.blacklist).push({ type: 'root', path: root });
 
                 // get content
                 let content = await this.getContentPartition();
-                await logWrite("Found content partition at " + content, 'info', log);
+                logWrite("Found content partition at " + content, 'info', log);
                 blacklist.push({ type: 'content', path: content });
                 this.blacklist = blacklist;
                 
@@ -433,6 +424,9 @@ function logWrite(message, type, path){
 
         let typeString;
         switch(type){ 
+            case 'init': 
+                typeString = "[ " + chalk.blueBright("INIT") + " ]"; 
+                break;
             case 'info':
                 typeString = "[ " + chalk.green("INFO") + " ]"; 
                 break;
