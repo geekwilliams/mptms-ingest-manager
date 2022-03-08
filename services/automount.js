@@ -73,6 +73,7 @@ export class automount {
                     // need to keep tasks from overlapping 
                     if(true){ 
                         processRunning = true;
+                        let mountListReturn; 
                         mountListReturn = await automountService(this.blacklist, mountList);
                         console.log(mountListReturn);
                         if(!mountListReturn){ 
@@ -249,7 +250,7 @@ export class automount {
 
 function automountService(blacklist, mounted){
     return new Promise(async (resolve, reject) => {
-        let mList = mounted | [];
+        let mList = [];
         let blArr = blacklist;
         // get info from blacklist array
         let exString = '';
