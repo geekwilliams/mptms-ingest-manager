@@ -73,8 +73,15 @@ export class automount {
                     // need to keep tasks from overlapping 
                     if(true){ 
                         processRunning = true;
-                        mountList = await automountService(this.blacklist, this.mountList);
-                        this.mountList = mountList;
+                        mountListReturn = await automountService(this.blacklist, mountList);
+                        console.log(mountListReturn);
+                        if(!mountListReturn){ 
+                            console.log("No new mounts");
+                        }
+                        else{ 
+                            mountList = mountListReturn;
+                            this.mountList = mountListReturn;
+                        }
 
                         console.log(this.mountList);
                         processRunning = false
