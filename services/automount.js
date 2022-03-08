@@ -254,7 +254,7 @@ function automountService(blacklist, mounted){
         let ex = String.raw`(^((sd[" + ${exString} + "])|loop|sr0))`;
         try {
             let blDevs = await getBlockDevices(ex);
-            for(d in blDevs){ 
+            for(let d in blDevs){ 
                 let parts = blDevs[d].PARTITIONS;
                 let dev;
                 if(!parts){ 
@@ -308,13 +308,13 @@ function automountService(blacklist, mounted){
             let mediaMounts = fs.readdirSync('/media/');
             let blockDevs = await getBlockDevices(blArr); 
 
-            for(i in mList) {
+            for(let i in mList) {
                 let d = mList[i]; 
                 if(!diskByUUID.includes(d.uuid)){ 
                     // worst case scenario first (dev has no uuid or no partition but is mounted somehow)
                     // find index of device in blockDevs
                     let devIndex;
-                    for(dev in blockDevs){ 
+                    for(let dev in blockDevs){ 
                         if(blockDevs[dev].NAME == (d.device).slice(-3)){ 
                             // found it (no need to unmount)
                             devIndex = dev;
@@ -412,6 +412,9 @@ function logWrite(message, path){
             resolve();
         }
     });
+
+    // TODO: 
+    // fix date and time to be less intrusive in log file (make more room for messages)
 }
 
 
