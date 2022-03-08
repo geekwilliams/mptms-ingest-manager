@@ -253,7 +253,7 @@ export class automount {
 
 function automountService(blacklist, mounted){
     return new Promise(async (resolve, reject) => {
-        let mList = [];
+        let mList = mounted;
         let blArr = blacklist;
         // get info from blacklist array
         let exString = '';
