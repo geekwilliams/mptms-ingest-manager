@@ -344,13 +344,15 @@ function automountService(blacklist, mounted){
                         else { 
                             logWrite("Successfully unmounted device at " + d.mountPoint, 'info', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                             // return list of mounts to main class when finished
-                            resolve(mList.splice(i, 1))
+                            mList.splice(i, 1)
                         }
                     }
                 }
                 else { 
+                    resolve(mList);
                     // found uuid, no need to umount 
                 }
+                resolve(mList);
             }
         }   
         catch (err){ 
