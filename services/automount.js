@@ -263,6 +263,7 @@ function automountService(blacklist, mounted){
                     let isMounted = mountutils.isMounted("/dev/" + dev, true);
                     if(!isMounted.mounted){ 
                         // mount if it is not mounted
+                        let mountPoint = "/media/" + dev;
                         let mountResult = mountutils.mount("/dev/" + dev, "/media/" + dev, { "createDir": true, "readonly": true, "mountPath": mountPoint, "dirMode": '0444'});
                         if(mountResult.error){ 
                             logWrite("There was an error mounting disk: ", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
