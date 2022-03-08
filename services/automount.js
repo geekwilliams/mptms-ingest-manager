@@ -1,6 +1,7 @@
 import * as mountutils  from 'linux-mountutils';
 import * as blockutils from 'linux-blockutils';
 import * as fs from 'fs';
+import chalk from 'chalk';
 
 // re-write 3/6/2022 to fix spaghetti mess CW
 // DSS base servers have bootloader flash from Dolby Cinema system.  Exception for these devices has been hardcoded
@@ -28,19 +29,19 @@ export class automount {
         }
 
         if(!this.blacklist){ 
-            await logWrite("No dev blacklist specified. Using discovery for root and content partitions", log)
+            await logWrite("No dev blacklist specified. Using discovery for root and content partitions", 'warn', log)
             console.log("No blacklist configured.  Using discovery for root and content partitions...")
             try{
                 // get root 
                 let root = await this.getRoot();
-                await logWrite("Found root at " + root, log); 
+                await logWrite("Found root at " + root, 'info', log); 
                 let blacklist = [];
                 blacklist.push({ type: 'root', path: root });
                 //(this.blacklist).push({ type: 'root', path: root });
 
                 // get content
                 let content = await this.getContentPartition();
-                await logWrite("Found content partition at " + content, log);
+                await logWrite("Found content partition at " + content, 'info', log);
                 blacklist.push({ type: 'content', path: content });
                 this.blacklist = blacklist;
                 
@@ -48,15 +49,15 @@ export class automount {
             }
             catch(err){ 
                 console.error("Unable to determine root or content partition.  See log for details."); 
-                await logWrite("Unable to determine one or more system drives. Please see error for more information.", log)
-                await logWrite(err, log)
+                await logWrite("Unable to determine one or more system drives. Please see error for more information.", 'error', log)
+                await logWrite(err, 'error', log)
                 
                 throw err
             }
         }
         else{ 
             console.log("Using configured blacklist.");
-            logWrite("Using configured blacklist.", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+            logWrite("Using configured blacklist.", 'info', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
         }
     }
 
@@ -98,7 +99,7 @@ export class automount {
             catch(err){ 
                 console.log("There was an error starting automount service.");
                 console.error(err);
-                logWrite("Error starting automount service", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                logWrite("Error starting automount service", 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
             }
 
             
@@ -108,7 +109,7 @@ export class automount {
             this.automount = false;
             
             console.log("This application will not run on windows.");
-            logWrite("Application is not compatible with windows.  Terminating...", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+            logWrite("Application is not compatible with windows.  Terminating...", 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
         }
         else {  
             console.error("Cannot determine platform.  This application will not run.");
@@ -274,11 +275,11 @@ function automountService(blacklist, mounted){
                         let mountPoint = "/media/" + dev;
                         let mountResult = mount("/dev/" + dev, "/media/" + dev, { "createDir": true, "readonly": true, "dirMode": '0444'});
                         if(mountResult.error){ 
-                            logWrite("There was an error mounting disk: ", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
-                            logWrite(mountResult.error, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            logWrite("There was an error mounting disk: ", 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            logWrite(mountResult.error, 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                         }
                         else { 
-                            logWrite("Device /dev/" + dev + " mounted at /media/" + dev, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            logWrite("Device /dev/" + dev + " mounted at /media/" + dev, 'info', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                             // push device onto array after successfull mount
                             mList.push({ 'device': '/dev/' + dev, 'mountPoint': '/media/' + dev, 'uuid': '' });
                         }
@@ -294,12 +295,12 @@ function automountService(blacklist, mounted){
                             let mountPoint = "/media/" + parts[p].NAME;
                             let mountResult = mount("/dev/" + parts[p].NAME, "/media/" + parts[p].NAME, { "createDir": true, "readonly": true, "dirMode": '0444'});
                             if(mountResult.error){ 
-                                logWrite("There was an error mounting disk: ", log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
-                                logWrite(mountResult.error, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                                logWrite("There was an error mounting disk: ", 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                                logWrite(mountResult.error, 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                             }
                             else { 
-                                logWrite("Device /dev/" + dev + " mounted at /media/" + dev, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)}); 
-                                mList.push({ 'device': '/dev/' + dev, 'mountPoint': '/media/' + dev, 'uuid': parts[p].UUID });
+                                logWrite("Device /dev/" + parts[p].NAME + " mounted at /media/" + parts[p].NAME, 'info', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)}); 
+                                mList.push({ 'device': '/dev/' + parts[p].NAME, 'mountPoint': '/media/' + parts[p].NAME, 'uuid': parts[p].UUID });
                             }    
                         }
 
@@ -309,7 +310,7 @@ function automountService(blacklist, mounted){
         }
 
         catch (err){
-            logWrite("Error getting block devs... " + err, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+            logWrite("Error getting block devs... " + err, 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
             console.error("Error getting block devs...   " + err);
         }
 
@@ -336,10 +337,10 @@ function automountService(blacklist, mounted){
                     if(!devIndex){ 
                         let umountResult = await unmount(d.mountPoint, true, { "removeDir": true });
                         if(umountResult.error){ 
-                            logWrite("There was an error unmounting device at " + d.device, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            logWrite("There was an error unmounting device at " + d.device, 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                         }
                         else { 
-                            logWrite("Successfully unmounted device at " + d.mountPoint, log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
+                            logWrite("Successfully unmounted device at " + d.mountPoint, 'info', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                             // return list of mounts to main class when finished
                             resolve(mList.splice(i, 1))
                         }
@@ -408,13 +409,34 @@ function unmount(mountPoint, isDev, options){
     });
 }
 
-function logWrite(message, path){
+function logWrite(message, type, path){
     return new Promise((resolve, reject) => {
-        let d = Date();
-        let dateString = "[ " + d + " ]    "; 
+        let m = new Date();
+        let dateString = "[ " +
+            m.getUTCFullYear() + "/" +
+            ("0" + (m.getUTCMonth()+1)).slice(-2) + "/" +
+            ("0" + m.getUTCDate()).slice(-2) + " " +
+            ("0" + m.getUTCHours()).slice(-2) + ":" +
+            ("0" + m.getUTCMinutes()).slice(-2) + ":" +
+            ("0" + m.getUTCSeconds()).slice(-2) + " ] ";
+
+        let typeString;
+        switch(type){ 
+            case 'info':
+                typeString = "[ " + chalk.green("INFO") + " ]"; 
+                break;
+            case 'warn':
+                typeString = "[ " + chalk.yellow("WARN") + " ]"; 
+                break;
+            case 'error': 
+                typeString = "[ " + chalk.red("ERROR") + " ]"; 
+                break
+        }
+
+        let fullMessage = dateString + typeString + '   '; 
         let fsStream = fs.createWriteStream(path, { flags: 'a' });
         try{
-            fsStream.write(dateString + message + "\n");
+            fsStream.write(fullMessage + "\n");
             fsStream.end();
             resolve();
         }
