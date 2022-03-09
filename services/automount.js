@@ -273,7 +273,7 @@ function automountService(blacklist, mounted){
                     if(!isMounted.mounted){ 
                         // mount if it is not mounted
                         let mountPoint = "/media/" + dev;
-                        let mountResult = mount("/dev/" + dev, "/media/" + dev, { "createDir": true, "readonly": true, "dirMode": '0444'});
+                        let mountResult = diskmount("/dev/" + dev, "/media/" + dev, { "createDir": true, "readonly": true, "dirMode": '0444'});
                         if(mountResult.error){ 
                             logWrite("There was an error mounting disk: ", 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                             logWrite(mountResult.error, 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
@@ -293,7 +293,7 @@ function automountService(blacklist, mounted){
         
                         if(!isMounted.mounted){ 
                             let mountPoint = "/media/" + parts[p].NAME;
-                            let mountResult = mount("/dev/" + parts[p].NAME, "/media/" + parts[p].NAME, { "createDir": true, "readonly": true, "dirMode": '0444'});
+                            let mountResult = diskmount("/dev/" + parts[p].NAME, "/media/" + parts[p].NAME, { "createDir": true, "readonly": true, "dirMode": '0444'});
                             if(mountResult.error){ 
                                 logWrite("There was an error mounting disk: ", 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
                                 logWrite(mountResult.error, 'error', log).catch(err => { console.error("Unable to write to log.  Does it exist?"); console.error(err)});
@@ -395,7 +395,7 @@ function getBlockDevices(exclusions){
     });
 }
 
-function mount(device, mountPoint, mountOptions){ 
+function diskmount(device, mountPoint, mountOptions){ 
     // Promisify stupid mount function to make the server function nicer to look at
     return new Promise((resolve, reject) => {
         if(!mountOptions){ 
