@@ -335,7 +335,7 @@ function automountService(blacklist, mounted){
                 }
 
                 // compare to mounts in /media/ and see what needs to be removed
-                for (mount in mediaMounts){ 
+                for (let mount in mediaMounts){ 
                     if(idLinks.includes(mediaMounts[mount])){ 
                         // do nothing. device is still plugged in
                     }
